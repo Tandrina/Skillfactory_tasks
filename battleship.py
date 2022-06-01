@@ -29,7 +29,7 @@ class BoardWrongShipException(BoardException):
 # Класс точек на поле.
 class Dot:
     def __init__(self, x, y):
-        self.x = x  # создаем аттрибуты класса Dot
+        self.x = x
         self.y = y
 
     def __eq__(self, other):
@@ -41,14 +41,14 @@ class Dot:
 
 class Ship:
 
-    def __init__(self, lenght, point, orient):
-        self.lenght = lenght    # длина корабля
-        self.point = point    # точка размещения носа корабля
-        self.orient = orient    # ориентация
-        self.life = lenght    # количество жизни равно длине
+    def __init__(self, point,  lenght, orient):
+        self.lenght = lenght  # длина корабля
+        self.point = point  # точка размещения носа корабля
+        self.orient = orient  # ориентация
+        self.life = lenght  # количество жизни равно длине
 
     # возвращает список всех точек корабля
-    @property    # декоратор для неявного вызова
+    @property  # декоратор для неявного вызова
     def dots(self):
         ship_dots = []
         for i in range(self.lenght):
@@ -62,7 +62,8 @@ class Ship:
             elif self.orient == 1:
                 cur_y += i
 
-            # переменная представляет собой список из кортежей с координатами корабля
+            # в переменную добавляются координаты корабля.
+            # так получается полный список координат кораблей на доске
             ship_dots.append(Dot(cur_x, cur_y))
 
         return ship_dots
@@ -80,7 +81,7 @@ class Board:
 
         self.count = 0  # количество пораженных кораблей на доске
 
-        self.field = [["O"] * size for _ in range(size)]
+        self.field = [["."] * size for _ in range(size)]  # генерация доски
 
         self.busy = []  # занятые точки или куда уже стреляли
 
@@ -91,25 +92,27 @@ class Board:
             res += f"\n{i + 1} | " + " | ".join(row) + " |"
 
         if self.hid:  # если доска скрыта, то для внешнего все меняется на ноль
-            res = res.replace("■", "O")
+            res = res.replace("■", ".")
+
         return res
+
+    # ставит корабль на доску.
+    # Если ставить не удается, то следует исключение
+    def add_ship(self, ship):  # вводит объект класса Ship
+        for d in ship.dots:
+            if self.out(d) or d in self.busy:
+                raise BoardWrongShipException()
+
+        for d in ship.dots:  # если все успешно, то отмечает корабль на доске
+            self.field[d.x][d.y] = "■"
+            self.busy.append(d)
+
+        self.ships.append(ship)  # добавляет в список кораблей координаты нового
+        self.contour(ship)
 
     # для точки возвращает True, если она не выходит за пределы поля.
     def out(self, shot):
         return not ((0 <= shot.x < self.size) and (0 <= shot.y < self.size))
-
-    # ставит корабль на доску.
-    # Если ставить не удается, то следует исключение
-    def add_ship(self, ship):
-        for d in ship.dots:
-            if self.out(d) or d in self.busy:
-                raise BoardWrongShipException()
-        for d in ship.dots:
-            self.field[d.x][d.y] = "■"
-            self.busy.append(d)
-
-        self.ships.append(ship)
-        self.contour(ship)
 
     # Обводит корабль по контуру.
     # Помечает соседние с кораблем точки, где поставить нельзя
@@ -121,10 +124,10 @@ class Board:
         ]
         for d in ship.dots:
             for dx, dy in near:
-                cur = Dot(d.x + dx, d.y + dy)
+                cur = Dot((d.x + dx), (d.y + dy))
                 if not (self.out(cur)) and cur not in self.busy:
                     if verb:
-                        self.field[cur.x][cur.y] = "."
+                        self.field[cur.x][cur.y] = "*"
                     self.busy.append(cur)
 
     # делает выстрел по доске
@@ -160,8 +163,6 @@ class Board:
         self.busy = []
 
 
-# Внешняя логика
-
 # общий класс игрока
 class Player:
     def __init__(self, board, enemy):
@@ -183,12 +184,12 @@ class Player:
             except BoardException as e:
                 print(e)
 
-    # класс игрока - человека
 
-
+# класс игрока - человека
 class User(Player):
 
     # метод запрашивает координаты из точки в консоли
+    # переопределение базового метода родительского класса
     def ask(self):
         while True:
             cords = input("Ваш ход: ").split()
@@ -214,7 +215,7 @@ class AI(Player):
 
     # метод делает случайный выбор точки
     def ask(self):
-        d = Dot(randint(0, 5), randint(0, 5))
+        d = Dot(randint(0, 5), randint(0, 5))  # случайная генерация двух координат
         print(f"Ход компьютера: {d.x + 1} {d.y + 1}")
         return d
 
@@ -224,9 +225,10 @@ class Game:
 
     def __init__(self, size=6):
         self.size = size
+
         pl = self.random_board()
         co = self.random_board()
-        co.hid = True
+        co.hid = True  # у доcки противника всегда скрыто
 
         self.ai = AI(co, pl)
         self.us = User(pl, co)
